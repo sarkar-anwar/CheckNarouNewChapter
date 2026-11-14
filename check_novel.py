@@ -8,12 +8,12 @@ NOVELS = [
     {
         "novel_id": "n4830bu",
         "message_header": "New Hannelore chapter is out! ",
-        "ping_role": " <@&YOUR_ROLE_ID>"  # Optional: leave as "" if no ping is needed
+        "ping_role": " <@&821044829004890192>"  # Optional: leave as "" if no ping is needed
     },
     {
-        "novel_id": "n1234ab",  # Example second novel
-        "message_header": "New chapter released: ",
-        "ping_role": ""
+        "novel_id": "n7835cj",  # Example second novel
+        "message_header": "A new SS chapter is out! ",
+        "ping_role": " <@&821044829004890192>"
     }
 ]
 
