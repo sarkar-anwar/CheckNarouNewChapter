@@ -1,86 +1,69 @@
-import asyncio
-import datetime
-import aiohttp
+import os
+import requests
 
-# Helper function for timestamped logs
-def log(message, level="INFO"):
-    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f"[{now}] [{level}] {message}")
+# Configuration from environment variables / GitHub Secrets
+NOVEL_ID = "n4830bu"
+MESSAGE_HEADER = "New Hannelore chapter is out! "
+PING_ROLE = " <@&YOUR_ROLE_ID>"  # Leave as "" if not needed
+WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL")
+STATE_FILE = "last_chapter.txt"
 
-async def call_discord_webhook(webhook_url, chapter_url, message_header, ping_role):
+def send_discord_webhook(chapter_url):
+    if not WEBHOOK_URL:
+        print("Error: DISCORD_WEBHOOK_URL is not set.")
+        return
+
     data = {
-        "content": f"{message_header}{chapter_url}{ping_role}"
+        "content": f"{MESSAGE_HEADER}{chapter_url}{PING_ROLE}"
     }
-    
-    async with aiohttp.ClientSession() as session:
-        try:
-            async with session.post(webhook_url, json=data) as response:
-                if response.status not in range(200, 300):
-                    log(f"Discord webhook failed with status: {response.status}", level="WARNING")
-                else:
-                    log("Discord notification sent successfully!")
-        except aiohttp.ClientError as e:
-            log(f"Failed to send Discord webhook: {e}", level="WARNING")
+    response = requests.post(WEBHOOK_URL, json=data)
+    if response.status_code in range(200, 300):
+        print("Discord notification sent successfully!")
+    else:
+        print(f"Discord webhook failed with status: {response.status_code}")
 
-async def monitor_novel(novel_id, message_header, ping_role="", webhook_url="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", interval_minutes=5):
-    """
-    Continuously checks Shōsetsuka ni Narō for new chapters of a given novel ID.
-    """
-    # Clean the novel_id and construct the base URL
-    clean_id = novel_id.strip("/")
+def check_novel():
+    clean_id = NOVEL_ID.strip("/")
     baselink = f"https://syosetu.com{clean_id}/"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
+
+    response = requests.get(baselink, headers=headers)
+    if response.status_code != 200:
+        print(f"Failed to fetch page. Status code: {response.status_code}")
+        return
+    content = response.text
+
+    # Load the last known chapter from the state file
     current_chapter = 0
-    
-    user_agent = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-    headers = {'User-Agent': user_agent}
+    if os.path.exists(STATE_FILE):
+        with open(STATE_FILE, "r") as f:
+            saved_val = f.read().strip()
+            if saved_val.isdigit():
+                current_chapter = int(saved_val)
 
-    log(f"Starting chapter monitor for {clean_id} ({baselink})...")
+    word = f"{clean_id}/{current_chapter + 1}/"
 
-    while True:
-        async with aiohttp.ClientSession(headers=headers) as session:
-            try:
-                async with session.get(baselink) as response:
-                    if response.status != 200:
-                        log(f"[{clean_id}] Failed to fetch page. Status code: {response.status}", level="WARNING")
-                        await asyncio.sleep(interval_minutes * 60)
-                        continue
-                    content = await response.text()
-            except aiohttp.ClientError as e:
-                log(f"[{clean_id}] Network error fetching chapter index: {e}", level="WARNING")
-                await asyncio.sleep(interval_minutes * 60)
-                continue
-
-        word = f"{clean_id}/{current_chapter + 1}/"
-
-        # Initial run: find the current latest chapter
-        if current_chapter == 0:
-            log(f"[{clean_id}] First time running. Finding the latest chapter number...")
-            while word in content:
-                current_chapter += 1
-                word = f"{clean_id}/{current_chapter + 1}/"
-            log(f"[{clean_id}] Latest chapter number = {current_chapter}")
-
-        # Subsequent runs: check if the next chapter exists
-        # Using a while loop here ensures that if 2 chapters drop at once, both get caught
+    # If state file didn't exist (first run), find the current latest chapter without pinging
+    if current_chapter == 0:
+        print("First run detected. Finding current latest chapter...")
         while word in content:
-            log(f"[{clean_id}] Found chapter {current_chapter + 1}!")
-            link_to_new_chapter = f"{baselink}{current_chapter + 1}/"
-            
-            await call_discord_webhook(webhook_url, link_to_new_chapter, message_header, ping_role)
-            
             current_chapter += 1
             word = f"{clean_id}/{current_chapter + 1}/"
-            log(f"[{clean_id}] Now checking for chapter {current_chapter + 1}")
+        print(f"Baseline set to chapter {current_chapter}.")
+    else:
+        # Check for new chapters and notify Discord
+        while word in content:
+            print(f"Found new chapter: {current_chapter + 1}!")
+            link_to_new_chapter = f"{baselink}{current_chapter + 1}/"
+            send_discord_webhook(link_to_new_chapter)
+            current_chapter += 1
+            word = f"{clean_id}/{current_chapter + 1}/"
 
-        # Wait before the next check
-        await asyncio.sleep(interval_minutes * 60)
+    # Save the updated chapter number back to the file
+    with open(STATE_FILE, "w") as f:
+        f.write(str(current_chapter))
 
-# ==========================================
-# RUN THE FUNCTION
-# ==========================================
-await monitor_novel(
-    novel_id="n4830bu",  # Just the n-code (e.g., "n4830bu")
-    message_header="New Hannelore chapter is out! ",
-    ping_role=" <@&YOUR_ROLE_ID>", # Optional: leave as "" if no ping is needed
-    webhook_url="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-)
+if __name__ == "__main__":
+    check_novel()
