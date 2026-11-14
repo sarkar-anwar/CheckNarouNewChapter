@@ -5,7 +5,7 @@ import requests
 WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL")
 TEST_MESSAGE = "✅ **GitHub Actions Test:** Your Syosetu Discord webhook is connected and working!"
 # Optional: Add your role ID below (e.g., " <@&123456789>") to test role pings too, or leave empty
-PING_ROLE = ""
+PING_ROLE = " <@&821044829004890192>"
 
 def send_test_webhook():
     if not WEBHOOK_URL:
