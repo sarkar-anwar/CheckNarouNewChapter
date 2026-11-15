@@ -6,7 +6,7 @@ import requests
 # 1. ADD YOUR NOVELS HERE
 NOVELS = [
     {
-        "novel_id": "n4830bu",
+        "novel_id": "n4750dy",
         "message_header": "New Hannelore chapter is out! ",
         "ping_role": " <@&821044829004890192>"  # Optional: leave as "" if no ping is needed
     },
@@ -55,7 +55,7 @@ def check_all_novels():
 
     for novel in NOVELS:
         clean_id = novel["novel_id"].strip("/")
-        baselink = f"https://syosetu.com{clean_id}/"
+        baselink = f"https://ncode.syosetu.com/" + clean_id + "/"
         print(f"Checking {clean_id}...")
 
         try:
