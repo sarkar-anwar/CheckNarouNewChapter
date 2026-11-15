@@ -1,9 +1,9 @@
 name: Syosetu Chapter Monitor
 
 on:
-  schedule:
+  #schedule:
     # Runs every 10 minutes (GitHub throttles crons shorter than 5 mins)
-    - cron: '*/10 * * * *'
+    #- cron: '*/10 * * * *'
   # Allows you to manually trigger the workflow from the Actions tab to test it
   workflow_dispatch:
 
